@@ -1,1 +1,1 @@
-from .parser import BaseDaffodilDelegate
+from .daffodil_parser import BaseDaffodilDelegate

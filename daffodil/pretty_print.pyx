@@ -1,6 +1,6 @@
 from collections import UserList
 
-from .parser cimport Token, TimeStamp, BaseDaffodilDelegate
+from .daffodil_parser cimport Token, TimeStamp, BaseDaffodilDelegate
 
 
 def token_to_daffodil_primitive(val):
