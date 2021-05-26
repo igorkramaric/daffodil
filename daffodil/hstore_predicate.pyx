@@ -1,5 +1,5 @@
 from collections import UserString
-from .parser cimport Token, BaseDaffodilDelegate
+from .daffodil_parser cimport Token, BaseDaffodilDelegate
 
 
 RE_CASE = "CASE WHEN ({0}->'{1}' ~ E'"

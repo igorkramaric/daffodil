@@ -1,4 +1,4 @@
-from .parser cimport Token, BaseDaffodilDelegate
+from .daffodil_parser cimport Token, BaseDaffodilDelegate
 
 
 # Sentinal to indicate a comment in the daffodil
