@@ -1,7 +1,7 @@
 import pyximport
 pyximport.install()
 
-from .daffodil_parser import Daffodil
+from .daffodil_parser import DaffodilPy as Daffodil
 from .predicate import DictionaryPredicateDelegate
 from .hstore_predicate import HStoreQueryDelegate
 from .pretty_print import PrettyPrintDelegate

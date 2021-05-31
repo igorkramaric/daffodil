@@ -517,3 +517,6 @@ cdef class Daffodil:
 
     def __call__(self, *args):
         return self.delegate.call(self.predicate, *args)
+
+class DaffodilPy(Daffodil):
+    pass

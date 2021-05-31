@@ -1,5 +1,5 @@
 from django.core.exceptions import ValidationError
-from daffodil import Daffodil
+from daffodil import DaffodilPy as Daffodil
 from daffodil.exceptions import ParseError
 
 
