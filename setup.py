@@ -4,7 +4,9 @@ cython_installed = False
 try:
     import Cython
     cython_installed = True
+    print("************ cython IS installed ***************")
 except ImportError:
+    print("************ cython NOT installed ***************")
     pass
 
 extra_kwargs = {}
