@@ -1,6 +1,6 @@
-from .daffodil_parser import DaffodilPy as Daffodil
-from .predicate import DictionaryPredicateDelegate
-from .hstore_predicate import HStoreQueryDelegate
-from .pretty_print import PrettyPrintDelegate
-from .key_expectation_delegate import KeyExpectationDelegate
-from .simulation_delegate import SimulationMatchingDelegate
+from daffodil.daffodil_parser import DaffodilPy as Daffodil
+from daffodil.predicate import DictionaryPredicateDelegate
+from daffodil.hstore_predicate import HStoreQueryDelegate
+from daffodil.pretty_print import PrettyPrintDelegate
+from daffodil.key_expectation_delegate import KeyExpectationDelegate
+from daffodil.simulation_delegate import SimulationMatchingDelegate
