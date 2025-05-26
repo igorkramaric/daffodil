@@ -1,10 +1,12 @@
 import string
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from .exceptions import ParseError
 from .predicate cimport DictionaryPredicateDelegate
 from .simulation_delegate cimport SimulationMatchingDelegate
 from .key_expectation_delegate cimport KeyExpectationDelegate
 from .hstore_predicate cimport HStoreQueryDelegate
+
+from dateutil.relativedelta import relativedelta
 
 
 DEF BARE_KEY_CHARS = "$-_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -27,9 +29,22 @@ OPERATORS = (
 
 MAX_OP_LENGTH = max(len(op) for op in OPERATORS)
 
+CURRENT_YEAR = "CURRENT_YEAR"
+CURRENT_MONTH = "CURRENT_MONTH"
+CURRENT_WEEK = "CURRENT_WEEK"
+CURRENT_DAY = "CURRENT_DAY"
+
+TS_CONSTANTS = (
+    CURRENT_YEAR,
+    CURRENT_MONTH,
+    CURRENT_WEEK,
+    CURRENT_DAY
+)
+
+
 DEF TS_FORMATS = (
     "%Y-%m-%d %H:%M",
-    "%Y-%m-%d",
+    "%Y-%m-%d"
 )
 
 cdef class Token:
@@ -42,7 +57,14 @@ cdef class Token:
 
 cdef class TimeStamp(Token):
     def __cinit__(self, str content):
+        self.uses_offset = False
+
+        content = content.strip()
         self.raw_content = content
+
+        if any(content.startswith(tsc) for tsc in TS_CONSTANTS):
+            self.content = self.date_func_to_timestamp(content)
+            return
 
         for ts_fmt in TS_FORMATS:
             try:
@@ -53,6 +75,27 @@ cdef class TimeStamp(Token):
                 continue
         else:
             raise ParseError(f'"timestamp({content})" couldn\'t be parsed')
+
+    def date_func_to_timestamp(self, date_expression):
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        time_unit, *offset = (elem.strip() for elem in date_expression.split("-"))
+
+        if time_unit not in TS_CONSTANTS:
+            raise ValueError(f"timestamp has no `{time_unit}` option. Use one of the following: {TS_CONSTANTS}")
+
+        try:
+            offset = 0 if offset == [] else int(offset[0])
+        except ValueError:
+            raise ValueError(f"Integer expected after `-`. Got {offset} instead.")
+
+        self.uses_offset = bool(offset)
+
+        return int({
+            CURRENT_YEAR: today.replace(month=1, day=1) - relativedelta(years=offset),
+            CURRENT_MONTH: today.replace(day=1) - relativedelta(months=offset),
+            CURRENT_WEEK: today - timedelta(days=today.weekday()) - relativedelta(weeks=offset),
+            CURRENT_DAY: today - relativedelta(days=offset),
+        }[time_unit].timestamp())
 
 
 cdef class GroupStart(Token):
@@ -308,12 +351,11 @@ cdef class DaffodilParser:
             self.pos += 1
 
         buffer = self.src[num_start:self.pos]
-        if "." not in buffer:
-            val = int(buffer)
-        else:
-            val = float(buffer)
 
-        self.tokens.append(Number(val))
+        if "." not in buffer:
+            self.tokens.append(Number(int(buffer)))
+        else:
+            self.tokens.append(Number(float(buffer)))
 
     def boolean(self):
         chunk = self.chars(5).lower()

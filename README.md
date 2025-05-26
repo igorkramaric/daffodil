@@ -200,17 +200,53 @@ Arrays:
 - `"x" in ("red", "green", "blue")`
 
 ### Functions
-
+timestamp
 - `timestamp(YYYY-MM-DD)` or `timestamp(YYYY-MM-DD HH:MM)` this is a helper function which generates the unix timestamp corresponding to the date (and optionally, time) entered. When the daffodil is evaluated the datetime is functionally a number, but this lets you write the daffodil in a way that is easier to read and understand. If hours and minutes are entered they are interpreted as 24 hour time UTC.
+- Offset example: `timestamp(CURRENT_DAY - 5)` - represents 5 days before today at 00:00:00 am. Generally this is `timestamp([CURRENT_DATE][-OFFSET])`, a timestamp at `00:00:00 am` of the given `CURRENT_DATE`
+  - where `CURRENT_DATE` option may be any of the following
+    - CURRENT_DAY (today at 00:00:00 am)
+    - CURRENT_WEEK (this week, starting on Monday at 00:00:00 am)
+    - CURRENT_MONTH (first day of this month at 00:00:00 am)
+    - CURRENT_YEAR (01/01 this year at 00:00:00 am)
+  - and `OFFSET` may be any positive integer, so expressions like the following are legit:
+    - CURRENT_DAY-3 (3 days before today 00:00:00)
+    - CURRENT_WEEK-10 (10 weeks before the beginning of this week)
+    - ...
+
 
 Examples:
-- people who began `mystudy` after halloween 2017:
+- people who began `mystudy` after Halloween 2017:
   `mystudy__started >= timestamp(2017-10-31)`
-- people who participated in `balloonstudy` while the Macy's thanksgiving day parade was on tv (Nov 23, 9AM to 12PM Eastern time):
+- people who participated in `balloonstudy` while the Macy's Thanksgiving day parade was on tv (Nov 23, 9AM to 12PM Eastern time):
   ```
   balloonstudy__started >= timestamp(2017-11-23 2:00)
   balloonstudy__started < timestamp(2017-11-23 17:00)
   ```
+- people who participated in `balloonstudy` this month, meaning "`balloonstudy__started` timestamp greater than the timestamp taken at `00:00:00 am` on the first day of the current month":
+
+  ```
+  balloonstudy__started > timestamp(CURRENT_MONTH)
+  ``` 
+  `>=` and `=` can be used interchangeably. The only difference is that `>=` will treat `00:00:00 am` of the first day as a timestamp belonging to the CURRENT_MONTH, while `>` would treat it as a timestamp belonging to the last day of the previous month.
+
+- people who participated in balloonstudy this month:
+
+  ```
+  balloonstudy__started > timestamp(CURRENT_MONTH)
+  ```
+  Note: If `>` gets replaced with `=` it would match only those who participated exactly at `00:00:00 am` (early morning today), which is somethign you probably don't want.
+
+- people who participated in `balloonstudy` this week except today:
+
+  ```
+  balloonstudy__started > timestamp(CURRENT_WEEK)
+  balloonstudy__started < timestamp(CURRENT_DAY)
+  ```
+- people who participated in `balloonstudy` during the past 5 months:
+
+  ```
+  balloonstudy__started > timestamp(CURRENT_MONTH-5)
+  ``` 
 
 ### Comparison operators
 

@@ -1,38 +1,27 @@
-from builtins import zip
 import sys
 import os
-import json
 import unittest
 import re
 import itertools
+from datetime import datetime
 
+from dateutil.relativedelta import relativedelta
+
+from data.nyc_sat_scores import NYC_SAT_SCORES
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from daffodil import (
-    Daffodil,
+    Daffodil, TimeStamp,
     KeyExpectationDelegate, DictionaryPredicateDelegate,
     HStoreQueryDelegate, PrettyPrintDelegate, SimulationMatchingDelegate
 )
 from daffodil.exceptions import ParseError
 
 
-def load_test_data(dataset):
-    filename = os.path.join(os.path.dirname(__file__), 'data', '{0}.json'.format(dataset))
-    with open(filename, 'r') as f:
-        data = json.load(f)
-    return data
-
-
-def load_nyc_opendata(dataset):
-    dataset = load_test_data(dataset)
-    columns = [c['fieldName'] for c in dataset['meta']['view']['columns']]
-    d = [dict(list(zip(columns, row_values))) for row_values in dataset['data']]
-
-
 class BaseTest(unittest.TestCase):
     def setUp(self):
-        self.d = load_test_data('nyc_sat_scores')
+        self.d = NYC_SAT_SCORES
 
     def filter(self, daff_src):
         return Daffodil(daff_src)(self.d)
@@ -308,6 +297,104 @@ class SATDataTests(BaseTest):
             }
         """)
 
+    def test_optimization_equality_within_and(self):
+        # optimized, equality alone
+        self.assert_filter_has_n_results(3, """
+            {
+                updated = "1714724220"
+                zip_code = "10019"
+            }
+        """)
+
+        # optimized, while keeping existence test out of optimization
+        self.assert_filter_has_n_results(1, """
+            {
+                updated = "1714724220"
+                dbn = "02M296"
+                not_existing_param ?= false
+            }
+        """)
+
+        # optimized, equality with mixed content, int + str
+        self.assert_filter_has_n_results(3, """
+            {
+                updated = 1714724220
+                zip_code = "10019"
+            }
+        """)
+
+        # integers only
+        self.assert_filter_has_n_results(3, """
+            {
+                updated = 1714724220
+                zip_code = 10019
+            }
+        """)
+
+
+    def test_optimization_equality_within_and_skipped(self):
+        # just one unique key
+        self.assert_filter_has_n_results(4, """
+            {
+                updated = "1714724220"
+                updated = "1714724220"
+            }
+        """)
+
+        # again just one unique key which is the optimization candidate
+        self.assert_filter_has_n_results(4, """
+            {
+                updated = "1714724220"
+                non_existing ?= false
+            }
+        """)
+
+        # repeated key in AND expression
+        self.assert_filter_has_n_results(0, """
+            {
+                updated = "1714724220"
+                zip_code = "10019"
+                zip_code = "9999999999"
+            }
+        """)
+
+        # mixed content string and int
+        self.assert_filter_has_n_results(3, """
+            {
+                updated = "1714724220"
+                zip_code = 10019
+            }
+        """)
+
+    def test_optimization_equality_and_existence_within_and(self):
+        # equality + existence optimization
+        self.assert_filter_has_n_results(2, """
+            {
+                updated = "1714724220"
+                zip_code = "10019"
+                sat_writing_avg_score > 361
+            }
+        """)
+
+        # equality only optimization since the existence optimization is
+        # skipped (`?=` is a deal-breaker)
+        self.assert_filter_has_n_results(3, """
+            {
+                updated = "1714724220"
+                zip_code = "10019"
+                non_existing ?= false
+            }
+        """)
+
+        # equality optimization skipped since there is only one `=` expression
+        # while the existence optimization is taking place
+        self.assert_filter_has_n_results(2, """
+            {
+                zip_code = "10019"
+                sat_writing_avg_score > 361
+            }
+        """)
+
     def test_not_and(self):
         self.assert_filter_has_n_results(370, """
             !{
@@ -565,6 +652,82 @@ class SATDataTests(BaseTest):
                 timestamp(2017-06-01)
                 timestamp(2017-11-21 16:27)
             )
+        """)
+
+    def test_timestamp_current_day(self):
+        self.assert_filter_has_n_results(4, """
+            _ack1 > timestamp(CURRENT_DAY)
+        """)
+        self.assert_filter_has_n_results(1, """
+            _ack1 < timestamp(CURRENT_DAY)
+        """)
+
+
+    def test_timestamp_current_week(self):
+        self.assert_filter_has_n_results(3, """
+            _ack2 > timestamp(CURRENT_WEEK)
+        """)
+        self.assert_filter_has_n_results(2, """
+            _ack2 < timestamp(CURRENT_WEEK)
+        """)
+
+    def test_timestamp_current_month(self):
+        self.assert_filter_has_n_results(2, """
+            _ack3 >= timestamp(CURRENT_MONTH)
+        """)
+        self.assert_filter_has_n_results(3, """
+            _ack3 < timestamp(CURRENT_MONTH)
+        """)
+
+    def test_timestamp_current_year(self):
+        self.assert_filter_has_n_results(1, """
+            _ack4 > timestamp(CURRENT_YEAR)
+        """)
+        self.assert_filter_has_n_results(4, """
+            _ack4 <= timestamp(CURRENT_YEAR)
+        """)
+
+    def test_timestamp_current_date_mix(self):
+        self.assert_filter_has_n_results(2, """
+            _ack1 >= timestamp(CURRENT_DAY )
+            _ack2 > timestamp( CURRENT_WEEK)
+            _ack3 ?= true
+            _ack4 < timestamp( CURRENT_YEAR )
+        """)
+
+    def test_timestamp_offsets(self):
+        self.assert_filter_has_n_results(4, """
+            _ack1 > timestamp(CURRENT_DAY - 1)
+        """)
+        self.assert_filter_has_n_results(0, """
+            _ack2 < timestamp(CURRENT_WEEK - 5)
+        """)
+        self.assert_filter_has_n_results(3, """
+            _ack3 < timestamp(CURRENT_MONTH - 6)
+        """)
+        self.assert_filter_has_n_results(5, """
+            _ack4 > timestamp(CURRENT_YEAR - 11)
+        """)
+        # range
+        self.assert_filter_has_n_results(2, """
+            _ack2 > timestamp(CURRENT_WEEK - 7)
+            _ack2 < timestamp(CURRENT_WEEK - 3)
+        """)
+        # mixed
+        self.assert_filter_has_n_results(2, """
+            _ack1 > timestamp(CURRENT_DAY - 3)
+            _ack3 > timestamp(CURRENT_MONTH - 2)
+            _ack4 > timestamp(CURRENT_YEAR - 10)
+        """)
+
+
+    def test_or_nonexistence(self):
+        self.assert_filter_has_n_results(4, """
+            num_of_sat_test_takers = 50
+            [
+                non_existing ?= false
+                non_existing_too ?= false
+            ]
         """)
 
 
@@ -935,6 +1098,18 @@ class KeyExpectationTests(unittest.TestCase):
             present={"x", "y"}
         )
         self.assert_daffodil_expectations(
+            "x != 1",
+            present=set(), omitted=set()
+        )
+        self.assert_daffodil_expectations(
+            "x != 1, y = 2",
+            present={"y"}, omitted=set()
+        )
+        self.assert_daffodil_expectations(
+            "x !in (1, 2)",
+            present=set(), omitted=set()
+        )
+        self.assert_daffodil_expectations(
             "x ?= true, y ?= false",
             present={"x"}, omitted={"y"}
         )
@@ -961,7 +1136,7 @@ class KeyExpectationTests(unittest.TestCase):
                 }
                 a ?= false
             """,
-            present={"a", "b", "c", "d", "y", "z"}, omitted={"x"}
+            present={"a", "c", "d", "y", "z"}, omitted={"x"}
         )
 
 
@@ -1180,6 +1355,21 @@ PRETTY_PRINT_EXPECTATIONS = (
 {
   "val1" = timestamp(2017-08-03)
   "val2" = timestamp(2017-08-03 15:21)
+}
+'''.strip()
+],
+
+# Timestamp spaces
+[
+'''
+    val1 = timestamp( CURRENT_DAY -1 )
+    val2 = timestamp(CURRENT_WEEK  )
+''',
+'{"val1"=timestamp(CURRENT_DAY-1),"val2"=timestamp(CURRENT_WEEK)}',
+'''
+{
+  "val1" = timestamp(CURRENT_DAY-1)
+  "val2" = timestamp(CURRENT_WEEK)
 }
 '''.strip()
 ],
@@ -1554,7 +1744,7 @@ val2 ?= true
 val6 ?= true
       val5 = 30
     }
-       # words!   
+       # words!
   {
     val5 ?= true
     val5 != 30
@@ -1622,6 +1812,49 @@ class PrettyPrintingTests(unittest.TestCase):
                 self.assertEqual(d1_pretty, pretty_expected)
 
 
+class TimeStampOffsetTests(unittest.TestCase):
+    def test_simple(self):
+        ts_start_today = TimeStamp("CURRENT_DAY").content
+        ts_start_3_days_ago = TimeStamp("CURRENT_DAY - 3").content
+
+        self.assertAlmostEqual(
+            ts_start_3_days_ago + 3 * 24 * 3600,
+            ts_start_today,
+            delta=1
+        )
+
+    def test_other_date_formats(self):
+        dates_expr = (
+            ("CURRENT_WEEK", "CURRENT_WEEK - 2", {"weeks": 2}),
+            ("CURRENT_MONTH", "CURRENT_MONTH - 8", {"months": 8}),
+            ("CURRENT_YEAR", "CURRENT_YEAR - 3", {"years": 3}),
+        )
+
+        _to_date = datetime.fromtimestamp
+
+        for now, some_time_ago, offset in dates_expr:
+
+            ts_now = TimeStamp(now).content
+            ts_some_time_ago = TimeStamp(some_time_ago).content
+
+            self.assertEqual(
+                _to_date(ts_now), _to_date(ts_some_time_ago) + relativedelta(**offset)
+            )
+
+    def test_wrong_format(self):
+        for wrong_format in (
+            "CURRENT_DAY-ABC",
+            "CURRENT_YEAR--",
+            "CURRENT_WEEK-",
+            "CURRENT_DAY -",
+            "CURRENT_DAY --9",
+            "CURRENT_MONTHABC",
+            "CURRENT_DAY3",
+        ):
+            with self.assertRaises(ValueError):
+                TimeStamp(wrong_format).content
+
+
 # Borrowed gratuitously from https://gist.github.com/k4ml/2219751
 from os import path as osp
 
@@ -1636,9 +1869,12 @@ SETTINGS = dict(
     SITE_ID=1,
     DATABASES = {
         'default':{
-            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'ENGINE': 'django.db.backends.postgresql',
             'NAME': 'daffodil_hstore_test',
             'USER': "postgres",
+            'PASSWORD': "postgres",
+            'HOST': '127.0.0.1',
+            'PORT': 5432,
         }
     },
     DEBUG=True,
@@ -1685,8 +1921,7 @@ if __name__ == "__main__":
     management.call_command("migrate")
 
     BasicHStoreData.objects.all().delete()
-    for record in load_test_data('nyc_sat_scores'):
+    for record in NYC_SAT_SCORES:
         BasicHStoreData.objects.create(hsdata=record)
 
     unittest.main()
-
