@@ -28,9 +28,16 @@ class ClickHouseDelegateTests(unittest.TestCase):
 
     def test_in_operators(self):
         sql = self._render('num_of_sat_test_takers in (50, 60)')
-        self.assertEqual(sql, "(hs_data.num_of_sat_test_takers IN (50, 60))")
+        self.assertEqual(sql,
+                         "(toUInt64(hs_data.num_of_sat_test_takers) IN (50, 60))")
         sql = self._render('num_of_sat_test_takers !in (50)')
-        self.assertEqual(sql, "(hs_data.num_of_sat_test_takers NOT IN (50))")
+        self.assertEqual(sql,
+                         "(toUInt64(hs_data.num_of_sat_test_takers) NOT IN (50))")
+
+    def test_in_string_operators(self):
+        sql = self._render('borough in ("Brooklyn", "Queens")')
+        self.assertEqual(sql,
+                         "(toString(hs_data.borough) IN ('Brooklyn', 'Queens'))")
 
     def test_existence_false(self):
         sql = self._render('zip_code ?= false')

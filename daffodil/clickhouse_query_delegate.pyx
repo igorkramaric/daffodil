@@ -58,13 +58,21 @@ cdef class ClickHouseQueryDelegate(BaseDaffodilDelegate):
                 return f"isNotNull({self.table}.{key_str})"
 
         cdef str key_expr = f"{self.table}.{key_str}"
-        cdef str val_expr = self._format_value(val_obj)
 
-        if op == "in":
-            return f"{key_expr} IN {val_expr}"
-        elif op == "!in":
-            return f"{key_expr} NOT IN {val_expr}"
+        if op in ("in", "!in"):
+            cdef str cast_expr = key_expr
+            if isinstance(val_obj, list) and val_obj:
+                if all(isinstance(v, int) for v in val_obj):
+                    cast_expr = f"toUInt64({key_expr})"
+                elif all(isinstance(v, str) for v in val_obj):
+                    cast_expr = f"toString({key_expr})"
+            cdef str val_expr = self._format_value(val_obj)
+            if op == "in":
+                return f"{cast_expr} IN {val_expr}"
+            else:
+                return f"{cast_expr} NOT IN {val_expr}"
         else:
+            cdef str val_expr = self._format_value(val_obj)
             return f"{key_expr} {op} {val_expr}"
 
     def call(self, predicate, query=None):
