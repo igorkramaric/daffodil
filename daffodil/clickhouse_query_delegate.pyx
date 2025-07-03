@@ -76,6 +76,8 @@ cdef class ClickHouseQueryDelegate(BaseDaffodilDelegate):
                 return f"{cast_expr} NOT IN {val_expr}"
         else:
             val_expr = self._format_value(val_obj)
+            if op == "!=":
+                return f"({key_expr} != {val_expr}) OR ({key_expr} IS NULL)"
             return f"{key_expr} {op} {val_expr}"
 
     def call(self, predicate, query=None):

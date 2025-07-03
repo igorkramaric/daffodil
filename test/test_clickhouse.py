@@ -43,6 +43,11 @@ class ClickHouseDelegateTests(unittest.TestCase):
         sql = self._render('zip_code ?= false')
         self.assertEqual(sql, "(isNull(hs_data.zip_code))")
 
+    def test_not_equal_with_null(self):
+        fltr = '{\n  "uni_valspar_qx_thanks" ?= true\n  "wave" != "post"\n}'
+        expected = "((isNotNull(hs_data.uni_valspar_qx_thanks)) AND ((hs_data.wave != 'post') OR (hs_data.wave IS NULL)))"
+        self.assertEqual(self._render(fltr), expected)
+
 
 if __name__ == '__main__':
     unittest.main()
