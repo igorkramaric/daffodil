@@ -13,13 +13,13 @@ class ClickHouseDelegateTests(unittest.TestCase):
         self.assertEqual(sql, "(hs_data.zip_code = 8002)")
 
     def test_medium(self):
-        fltr = '[ gender = "female"\n  gender = "male" ]'
-        expected = "((hs_data.gender = 'female') OR (hs_data.gender = 'male'))"
+        fltr = '[ dbn = "01M292"\n  dbn = "01M448" ]'
+        expected = "((hs_data.dbn = '01M292') OR (hs_data.dbn = '01M448'))"
         self.assertEqual(self._render(fltr), expected)
 
     def test_advanced(self):
-        fltr = '{\n  gender ?= true\n  sat_math_avg_score >= 500\n  ![\n    zip_code = 10001\n    zip_code = 10002\n  ]\n}'
-        expected = "((isNotNull(hs_data.gender)) AND (hs_data.sat_math_avg_score >= 500) AND (NOT ((hs_data.zip_code = 10001) OR (hs_data.zip_code = 10002))))"
+        fltr = '{\n  tag_with_null_value ?= true\n  sat_math_avg_score >= 500\n  ![\n    zip_code = 10004\n    zip_code = 10002\n  ]\n}'
+        expected = "((isNotNull(hs_data.tag_with_null_value)) AND (hs_data.sat_math_avg_score >= 500) AND (NOT ((hs_data.zip_code = 10004) OR (hs_data.zip_code = 10002))))"
         self.assertEqual(self._render(fltr), expected)
 
     def test_timestamp(self):
@@ -35,17 +35,17 @@ class ClickHouseDelegateTests(unittest.TestCase):
                          "(toUInt64(hs_data.num_of_sat_test_takers) NOT IN (50))")
 
     def test_in_string_operators(self):
-        sql = self._render('borough in ("Brooklyn", "Queens")')
+        sql = self._render('dbn in ("01M292", "01M448")')
         self.assertEqual(sql,
-                         "(toString(hs_data.borough) IN ('Brooklyn', 'Queens'))")
+                         "(toString(hs_data.dbn) IN ('01M292', '01M448'))")
 
     def test_existence_false(self):
         sql = self._render('zip_code ?= false')
         self.assertEqual(sql, "(isNull(hs_data.zip_code))")
 
     def test_not_equal_with_null(self):
-        fltr = '{\n  "uni_valspar_qx_thanks" ?= true\n  "wave" != "post"\n}'
-        expected = "((isNotNull(hs_data.uni_valspar_qx_thanks)) AND ((hs_data.wave != 'post') OR (hs_data.wave IS NULL)))"
+        fltr = '{\n  tag_with_null_value ?= true\n  zip_code != "10004"\n}'
+        expected = "((isNotNull(hs_data.tag_with_null_value)) AND ((hs_data.zip_code != '10004') OR (hs_data.zip_code IS NULL)))"
         self.assertEqual(self._render(fltr), expected)
 
 

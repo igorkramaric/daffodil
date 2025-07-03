@@ -1,4 +1,5 @@
 from .parser cimport Token, BaseDaffodilDelegate
+import re
 
 
 cdef class ClickHouseQueryDelegate(BaseDaffodilDelegate):
@@ -60,7 +61,10 @@ cdef class ClickHouseQueryDelegate(BaseDaffodilDelegate):
             else:
                 return f"isNotNull({self.table}.{key_str})"
 
-        key_expr = f"{self.table}.{key_str}"
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", key_str):
+            key_expr = f"{self.table}.{key_str}"
+        else:
+            key_expr = f"{self.table}.`{key_str}`"
 
         if op in ("in", "!in"):
             cast_expr = key_expr
