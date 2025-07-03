@@ -39,6 +39,15 @@ class ClickHouseDelegateTests(unittest.TestCase):
         self.assertEqual(sql,
                          "(toString(hs_data.dbn) IN ('01M292', '01M448'))")
 
+    def test_key_with_special_characters(self):
+        sql = self._render('"$calculated_pct" = "85"')
+        self.assertEqual(sql, "(hs_data.`$calculated_pct` = '85')")
+        sql = self._render('"$calculated_pct" ?= true')
+        self.assertEqual(sql, "(isNotNull(hs_data.`$calculated_pct`))")
+        sql = self._render('"$calculated_pct" != "85"')
+        self.assertEqual(sql,
+                         "((hs_data.`$calculated_pct` != '85') OR (hs_data.`$calculated_pct` IS NULL))")
+
     def test_existence_false(self):
         sql = self._render('zip_code ?= false')
         self.assertEqual(sql, "(isNull(hs_data.zip_code))")

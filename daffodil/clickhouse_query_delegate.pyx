@@ -55,16 +55,16 @@ cdef class ClickHouseQueryDelegate(BaseDaffodilDelegate):
         cdef str cast_expr
         cdef str val_expr
 
-        if op == "?=":
-            if val_obj is False:
-                return f"isNull({self.table}.{key_str})"
-            else:
-                return f"isNotNull({self.table}.{key_str})"
-
         if re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", key_str):
             key_expr = f"{self.table}.{key_str}"
         else:
             key_expr = f"{self.table}.`{key_str}`"
+
+        if op == "?=":
+            if val_obj is False:
+                return f"isNull({key_expr})"
+            else:
+                return f"isNotNull({key_expr})"
 
         if op in ("in", "!in"):
             cast_expr = key_expr
