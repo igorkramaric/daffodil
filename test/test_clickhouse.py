@@ -10,7 +10,7 @@ class ClickHouseDelegateTests(unittest.TestCase):
 
     def test_simple(self):
         sql = self._render('zip_code = 8002')
-        self.assertEqual(sql, "(hs_data.zip_code = 8002)")
+        self.assertEqual(sql, "(toUInt32(hs_data.zip_code) = 8002)")
 
     def test_medium(self):
         fltr = '[ dbn = "01M292"\n  dbn = "01M448" ]'
@@ -19,20 +19,30 @@ class ClickHouseDelegateTests(unittest.TestCase):
 
     def test_advanced(self):
         fltr = '{\n  tag_with_null_value ?= true\n  sat_math_avg_score >= 500\n  ![\n    zip_code = 10004\n    zip_code = 10002\n  ]\n}'
-        expected = "((isNotNull(hs_data.tag_with_null_value)) AND (hs_data.sat_math_avg_score >= 500) AND (NOT ((hs_data.zip_code = 10004) OR (hs_data.zip_code = 10002))))"
+        expected = "((isNotNull(hs_data.tag_with_null_value)) AND (toUInt32(hs_data.sat_math_avg_score) >= 500) AND (NOT ((toUInt32(hs_data.zip_code) = 10004) OR (toUInt32(hs_data.zip_code) = 10002))))"
         self.assertEqual(self._render(fltr), expected)
 
     def test_timestamp(self):
         sql = self._render('created >= timestamp(2017-06-01)')
         self.assertEqual(sql, "(hs_data.created >= 1496275200.0)")
 
+    def test_uint32_casting(self):
+        sql = self._render('field_month = 202411')
+        self.assertEqual(sql, "(toUInt32(hs_data.field_month) = 202411)")
+
+        sql = self._render('field_month in (202411, 202412)')
+        self.assertEqual(sql, "(toUInt32(hs_data.field_month) IN (202411, 202412))")
+
+        sql = self._render('field_month < 202501')
+        self.assertEqual(sql, "(toUInt32(hs_data.field_month) < 202501)")
+
     def test_in_operators(self):
         sql = self._render('num_of_sat_test_takers in (50, 60)')
         self.assertEqual(sql,
-                         "(toUInt64(hs_data.num_of_sat_test_takers) IN (50, 60))")
+                         "(toUInt32(hs_data.num_of_sat_test_takers) IN (50, 60))")
         sql = self._render('num_of_sat_test_takers !in (50)')
         self.assertEqual(sql,
-                         "(toUInt64(hs_data.num_of_sat_test_takers) NOT IN (50))")
+                         "(toUInt32(hs_data.num_of_sat_test_takers) NOT IN (50))")
 
     def test_in_string_operators(self):
         sql = self._render('dbn in ("01M292", "01M448")')

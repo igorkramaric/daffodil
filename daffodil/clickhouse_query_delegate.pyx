@@ -69,8 +69,8 @@ cdef class ClickHouseQueryDelegate(BaseDaffodilDelegate):
         if op in ("in", "!in"):
             cast_expr = key_expr
             if isinstance(val_obj, list) and val_obj:
-                if all(isinstance(v, int) for v in val_obj):
-                    cast_expr = f"toUInt64({key_expr})"
+                if all(isinstance(v, int) and not isinstance(v, bool) for v in val_obj):
+                    cast_expr = f"toUInt32({key_expr})"
                 elif all(isinstance(v, str) for v in val_obj):
                     cast_expr = f"toString({key_expr})"
             val_expr = self._format_value(val_obj)
@@ -80,9 +80,12 @@ cdef class ClickHouseQueryDelegate(BaseDaffodilDelegate):
                 return f"{cast_expr} NOT IN {val_expr}"
         else:
             val_expr = self._format_value(val_obj)
+            cast_expr = key_expr
+            if isinstance(val_obj, int) and not isinstance(val_obj, bool):
+                cast_expr = f"toUInt32({key_expr})"
             if op == "!=":
-                return f"({key_expr} != {val_expr}) OR ({key_expr} IS NULL)"
-            return f"{key_expr} {op} {val_expr}"
+                return f"({cast_expr} != {val_expr}) OR ({key_expr} IS NULL)"
+            return f"{cast_expr} {op} {val_expr}"
 
     def call(self, predicate, query=None):
         return predicate
