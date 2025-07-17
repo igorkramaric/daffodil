@@ -10,7 +10,7 @@ class ClickHouseDelegateTests(unittest.TestCase):
 
     def test_simple(self):
         sql = self._render('zip_code = 8002')
-        self.assertEqual(sql, "((toUInt32OrNull(hs_data.zip_code) = 8002) AND (hs_data.zip_code IS NOT NULL))")
+        self.assertEqual(sql, "((toUInt32OrNull(toString(hs_data.zip_code)) = 8002) AND (hs_data.zip_code IS NOT NULL))")
 
     def test_medium(self):
         fltr = '[ dbn = "01M292"\n  dbn = "01M448" ]'
@@ -19,7 +19,7 @@ class ClickHouseDelegateTests(unittest.TestCase):
 
     def test_advanced(self):
         fltr = '{\n  tag_with_null_value ?= true\n  sat_math_avg_score >= 500\n  ![\n    zip_code = 10004\n    zip_code = 10002\n  ]\n}'
-        expected = "((isNotNull(hs_data.tag_with_null_value)) AND ((toUInt32OrNull(hs_data.sat_math_avg_score) >= 500) AND (hs_data.sat_math_avg_score IS NOT NULL)) AND (NOT (((toUInt32OrNull(hs_data.zip_code) = 10004) AND (hs_data.zip_code IS NOT NULL)) OR ((toUInt32OrNull(hs_data.zip_code) = 10002) AND (hs_data.zip_code IS NOT NULL)))))"
+        expected = "((isNotNull(hs_data.tag_with_null_value)) AND ((toUInt32OrNull(toString(hs_data.sat_math_avg_score)) >= 500) AND (hs_data.sat_math_avg_score IS NOT NULL)) AND (NOT (((toUInt32OrNull(toString(hs_data.zip_code)) = 10004) AND (hs_data.zip_code IS NOT NULL)) OR ((toUInt32OrNull(toString(hs_data.zip_code)) = 10002) AND (hs_data.zip_code IS NOT NULL)))))"
         self.assertEqual(self._render(fltr), expected)
 
     def test_timestamp(self):
@@ -28,21 +28,21 @@ class ClickHouseDelegateTests(unittest.TestCase):
 
     def test_uint32_casting(self):
         sql = self._render('field_month = 202411')
-        self.assertEqual(sql, "((toUInt32OrNull(hs_data.field_month) = 202411) AND (hs_data.field_month IS NOT NULL))")
+        self.assertEqual(sql, "((toUInt32OrNull(toString(hs_data.field_month)) = 202411) AND (hs_data.field_month IS NOT NULL))")
 
         sql = self._render('field_month in (202411, 202412)')
-        self.assertEqual(sql, "((toUInt32OrNull(hs_data.field_month) IN (202411, 202412)) AND (hs_data.field_month IS NOT NULL))")
+        self.assertEqual(sql, "((toUInt32OrNull(toString(hs_data.field_month)) IN (202411, 202412)) AND (hs_data.field_month IS NOT NULL))")
 
         sql = self._render('field_month < 202501')
-        self.assertEqual(sql, "((toUInt32OrNull(hs_data.field_month) < 202501) AND (hs_data.field_month IS NOT NULL))")
+        self.assertEqual(sql, "((toUInt32OrNull(toString(hs_data.field_month)) < 202501) AND (hs_data.field_month IS NOT NULL))")
 
     def test_in_operators(self):
         sql = self._render('num_of_sat_test_takers in (50, 60)')
         self.assertEqual(sql,
-                         "((toUInt32OrNull(hs_data.num_of_sat_test_takers) IN (50, 60)) AND (hs_data.num_of_sat_test_takers IS NOT NULL))")
+                         "((toUInt32OrNull(toString(hs_data.num_of_sat_test_takers)) IN (50, 60)) AND (hs_data.num_of_sat_test_takers IS NOT NULL))")
         sql = self._render('num_of_sat_test_takers !in (50)')
         self.assertEqual(sql,
-                         "((toUInt32OrNull(hs_data.num_of_sat_test_takers) NOT IN (50)) AND (hs_data.num_of_sat_test_takers IS NOT NULL))")
+                         "((toUInt32OrNull(toString(hs_data.num_of_sat_test_takers)) NOT IN (50)) AND (hs_data.num_of_sat_test_takers IS NOT NULL))")
 
     def test_in_string_operators(self):
         sql = self._render('dbn in ("01M292", "01M448")')

@@ -71,7 +71,7 @@ cdef class ClickHouseQueryDelegate(BaseDaffodilDelegate):
             add_not_null = False
             if isinstance(val_obj, list) and val_obj:
                 if all(isinstance(v, int) and not isinstance(v, bool) for v in val_obj):
-                    cast_expr = f"toUInt32OrNull({key_expr})"
+                    cast_expr = f"toUInt32OrNull(toString({key_expr}))"
                     add_not_null = True
                 elif all(isinstance(v, str) for v in val_obj):
                     cast_expr = f"toString({key_expr})"
@@ -88,7 +88,7 @@ cdef class ClickHouseQueryDelegate(BaseDaffodilDelegate):
             cast_expr = key_expr
             add_not_null = False
             if isinstance(val_obj, int) and not isinstance(val_obj, bool):
-                cast_expr = f"toUInt32OrNull({key_expr})"
+                cast_expr = f"toUInt32OrNull(toString({key_expr}))"
                 add_not_null = True
             if op == "!=":
                 return f"({cast_expr} != {val_expr}) OR ({key_expr} IS NULL)"
