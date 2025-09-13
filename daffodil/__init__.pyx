@@ -2,6 +2,7 @@ from .parser import Daffodil, TimeStamp
 from .predicate import DictionaryPredicateDelegate
 from .hstore_predicate import HStoreQueryDelegate
 from .clickhouse_query_delegate import ClickHouseQueryDelegate
+from .column_query_delegate import ColumnQueryDelegate
 from .pretty_print import PrettyPrintDelegate
 from .key_expectation_delegate import KeyExpectationDelegate
 from .simulation_delegate import SimulationMatchingDelegate
