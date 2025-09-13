@@ -1,36 +1,79 @@
+import os
+import sys
 import unittest
+from django.conf import settings
+
+sys.path.append(os.path.dirname(__file__))
+
+SETTINGS = {
+    "INSTALLED_APPS": ["columntestapp"],
+    "DATABASES": {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    },
+    "MIDDLEWARE": [],
+}
+
+if not settings.configured:
+    settings.configure(**SETTINGS)
+
+import django
+try:
+    django.setup()
+except AttributeError:
+    pass
+
+from django.core import management
 from daffodil import Daffodil, ColumnQueryDelegate
+from columntestapp.models import BasicColumnData
+from test.data.nyc_sat_scores import NYC_SAT_SCORES
 
 
 class ColumnDelegateTests(unittest.TestCase):
-    def _render(self, fltr):
-        delegate = ColumnQueryDelegate()
-        return Daffodil(fltr, delegate=delegate)()
+    @classmethod
+    def setUpClass(cls):
+        management.call_command("migrate", verbosity=0)
+        BasicColumnData.objects.all().delete()
+        for record in NYC_SAT_SCORES:
+            data = record.copy()
+            if "$calculated_pct" in data:
+                data["cc_calculated_pct"] = int(data.pop("$calculated_pct"))
+            if "zip_code" in data:
+                data["zip_code"] = int(data["zip_code"])
+            if "total_score" in data:
+                try:
+                    data["total_score"] = float(data["total_score"])
+                except (TypeError, ValueError):
+                    data["total_score"] = None
+            BasicColumnData.objects.create(**data)
+        BasicColumnData.objects.create(cc_amount___total=5, foo_bar=1)
+
+    def setUp(self):
+        self.qs = BasicColumnData.objects.all()
+        self.delegate = ColumnQueryDelegate()
+
+    def _count(self, fltr):
+        daff = Daffodil(fltr, delegate=self.delegate)
+        return daff(self.qs).count()
 
     def test_basic(self):
-        sql = self._render('zip_code = 8002')
-        self.assertEqual(sql, '(zip_code = 8002)')
+        self.assertEqual(self._count("zip_code = 8002"), 1)
 
     def test_key_transforms(self):
-        sql = self._render('"$amount - total" = 5')
-        self.assertEqual(sql, '(cc_amount___total = 5)')
-        sql = self._render('"foo-bar" = 1')
-        self.assertEqual(sql, '(foo_bar = 1)')
+        self.assertEqual(self._count('"$amount - total" = 5'), 1)
+        self.assertEqual(self._count('"foo-bar" = 1'), 1)
 
     def test_in_operators(self):
-        sql = self._render('zip_code in (10004, 10002)')
-        self.assertEqual(sql, '(zip_code IN (10004, 10002))')
-        sql = self._render('zip_code !in (10004, 10002)')
-        self.assertEqual(sql, '((zip_code NOT IN (10004, 10002)) OR (zip_code IS NULL))')
+        self.assertEqual(self._count("zip_code in (10004, 10002)"), 1)
+        self.assertEqual(self._count("zip_code !in (10004, 10002)"), self.qs.count() - 1)
 
     def test_existence_and_not_equal(self):
-        sql = self._render('zip_code ?= true')
-        self.assertEqual(sql, '(zip_code IS NOT NULL)')
-        sql = self._render('zip_code ?= false')
-        self.assertEqual(sql, '(zip_code IS NULL)')
-        sql = self._render('zip_code != 10004')
-        self.assertEqual(sql, '((zip_code != 10004) OR (zip_code IS NULL))')
+        self.assertEqual(self._count("zip_code ?= true"), 7)
+        self.assertEqual(self._count("zip_code ?= false"), self.qs.count() - 7)
+        self.assertEqual(self._count("zip_code != 10004"), self.qs.count() - 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

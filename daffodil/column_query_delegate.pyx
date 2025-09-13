@@ -70,4 +70,6 @@ cdef class ColumnQueryDelegate(BaseDaffodilDelegate):
             return f"{column} {op} {val_expr}"
 
     def call(self, predicate, query=None):
-        return predicate
+        if query is None:
+            return predicate
+        return query.extra(where=[predicate]) if predicate else query
