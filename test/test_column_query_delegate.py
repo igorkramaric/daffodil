@@ -3,14 +3,19 @@ import sys
 import unittest
 from django.conf import settings
 
-sys.path.append(os.path.dirname(__file__))
+# Ensure the project root is on the path so the locally built extension is imported
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 SETTINGS = {
     "INSTALLED_APPS": ["columntestapp"],
     "DATABASES": {
         "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": ":memory:",
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": "daffodil_hstore_test",
+            "USER": "postgres",
+            "PASSWORD": "postgres",
+            "HOST": "127.0.0.1",
+            "PORT": 5432,
         }
     },
     "MIDDLEWARE": [],
