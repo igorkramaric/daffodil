@@ -3,8 +3,9 @@ import sys
 import unittest
 from django.conf import settings
 
-# Ensure the project root is on the path so the locally built extension is imported
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+# Ensure the project root is searched before any installed packages so the
+# locally built extension is imported
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 SETTINGS = {
     "INSTALLED_APPS": ["columntestapp"],
