@@ -34,7 +34,7 @@ jobs:
         with:
           python-version: 3.13
 
-      - name: psycopg3 prerequisites
+      - name: psycopg2 prerequisites
         run: sudo apt-get install libpq-dev
 
       - name: install python dependencies
