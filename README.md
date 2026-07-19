@@ -1,9 +1,24 @@
-daffodil
-========
+# Daffodil
 
-data filtering lib
+A Python-based expression language for defining and executing complex data
+filters.
 
-[![build status](https://travis-ci.org/mediapredict/daffodil.png)](https://travis-ci.org/mediapredict/daffodil)
+Daffodil converts human-readable filtering expressions into queries that can
+be evaluated against different storage systems, including PostgreSQL and
+ClickHouse.
+
+It supports:
+
+- AND, OR and NOT expression groups
+- Comparison and existence operators
+- IN and NOT IN expressions
+- Strings, numbers, booleans and timestamps
+- Relative date expressions
+- PostgreSQL and ClickHouse query generation
+- Cython-compiled components
+- Automated tests
+
+# Examples
 
 For 18 year old women:
 
